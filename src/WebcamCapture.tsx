@@ -4,6 +4,7 @@ import * as tmImage from '@teachablemachine/image';
 const MODEL_URL = '/model/';
 
 type Crop = { x: number; y: number; width: number; height: number };
+type InputEvent = React.MouseEvent<HTMLCanvasElement> | Touch;
 const HANDLE_SIZE = 10;
 
 const WebcamCapture: React.FC = () => {
@@ -24,7 +25,7 @@ const WebcamCapture: React.FC = () => {
     const init = async () => {
       const loadedModel = await tmImage.load(`${MODEL_URL}model.json`, `${MODEL_URL}metadata.json`);
       setModel(loadedModel);
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.onloadedmetadata = () => {
@@ -127,7 +128,7 @@ const WebcamCapture: React.FC = () => {
         }
 
         ctx.strokeStyle = 'yellow';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 3;
         ctx.strokeRect(x, y, width, height);
 
         const handles = getHandles(crop);
@@ -148,11 +149,13 @@ const WebcamCapture: React.FC = () => {
     { x: c.x + c.width, y: c.y + c.height },
   ];
 
-  const getRelativePos = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const getRelativePos = (e: InputEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect();
+    const clientX = 'clientX' in e ? e.clientX : 0;
+    const clientY = 'clientY' in e ? e.clientY : 0;
     return {
-      x: (e.clientX - rect.left) * (canvasRef.current!.width / rect.width),
-      y: (e.clientY - rect.top) * (canvasRef.current!.height / rect.height),
+      x: (clientX - rect.left) * (canvasRef.current!.width / rect.width),
+      y: (clientY - rect.top) * (canvasRef.current!.height / rect.height),
     };
   };
 
@@ -182,7 +185,7 @@ const WebcamCapture: React.FC = () => {
     return null;
   };
 
-  const onMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const onMouseDown = (e: React.MouseEvent<HTMLCanvasElement> | Touch) => {
     const pos = getRelativePos(e);
     const handle = detectHandle(pos);
     if (handle) {
@@ -191,7 +194,7 @@ const WebcamCapture: React.FC = () => {
     }
   };
 
-  const onMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const onMouseMove = (e: React.MouseEvent<HTMLCanvasElement> | Touch) => {
     if (!dragging.current) return;
     const pos = getRelativePos(e);
     const start = dragStart.current;
@@ -260,7 +263,10 @@ const WebcamCapture: React.FC = () => {
         />
         <canvas
           ref={canvasRef}
-          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: dragging.current ? 'grabbing' : 'default' }}
+          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', touchAction: 'none', cursor: dragging.current ? 'grabbing' : 'default' }}
+          onTouchStart={(e) => e.touches.length > 0 && onMouseDown(e.touches[0] as Touch)}
+          onTouchMove={(e) => e.touches.length > 0 && onMouseMove(e.touches[0] as Touch)}
+          onTouchEnd={onMouseUp}
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
