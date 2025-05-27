@@ -13,7 +13,7 @@ const WebcamCapture: React.FC = () => {
   const [crop, setCrop] = useState<Crop>({ x: 170, y: 190, width: 300, height: 100 });
 
   const [model, setModel] = useState<tmImage.CustomMobileNet | null>(null);
-  const [label, setLabel] = useState<string>('');
+  // const [label, setLabel] = useState<string>('');
   const [confidence, setConfidence] = useState<number>(0);
   const [hasCaptured, setHasCaptured] = useState(false);
   const delayRef = useRef(false);
