@@ -71,7 +71,6 @@ const WebcamCapture: React.FC = () => {
         setLabel(high.className);
         setConfidence(Math.round(high.probability * 100));
 
-        // Always capture for testing
         const finalCanvas = document.createElement('canvas');
         finalCanvas.width = width;
         finalCanvas.height = height;
@@ -79,11 +78,9 @@ const WebcamCapture: React.FC = () => {
         if (finalCtx) {
           finalCtx.drawImage(videoRef.current, x, y, width, height, 0, 0, width, height);
           const imgData = finalCanvas.toDataURL('image/png');
-          console.log('Captured Image:', imgData);
           setCapturedImage(imgData);
           setHasCaptured(true);
         }
-          
       } else {
         setLabel('');
         setConfidence(0);
@@ -94,7 +91,7 @@ const WebcamCapture: React.FC = () => {
       } else {
         setTimeout(() => requestAnimationFrame(detect), 200);
       }
-  };
+    };
     requestAnimationFrame(detect);
   }, [model, crop, hasCaptured]);
 
@@ -252,8 +249,8 @@ const WebcamCapture: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <div style={{ position: 'relative', width: videoSize.width, height: videoSize.height }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100vw', minHeight: '100vh', padding: '16px', boxSizing: 'border-box', overflowY: 'auto' }}>
+      <div style={{ position: 'relative', width: '100%', maxWidth: '100%', aspectRatio: `${videoSize.width} / ${videoSize.height}` }}>
         <video
           ref={videoRef}
           autoPlay
