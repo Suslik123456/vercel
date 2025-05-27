@@ -12,11 +12,11 @@ const WebcamCapture: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [videoSize, setVideoSize] = useState({ width: 640, height: 480 });
-  const [crop, setCrop] = useState<Crop>({ x: (640 - 300) / 2, y: (480 - 100) / 2, width: 300, height: 100 });
+  const [crop, setCrop] = useState<Crop>({ x: 170, y: 190, width: 300, height: 100 });
   const dragging = useRef<null | string>(null);
   const dragStart = useRef<{ x: number; y: number; crop: Crop } | null>(null);
 
-  const [model, setModel] = useState<tmImage.CustomMobileNet | null>(null); // used in detection useEffect
+  const [model, setModel] = useState<tmImage.CustomMobileNet | null>(null);
   const [label, setLabel] = useState<string>('');
   const [confidence, setConfidence] = useState<number>(0);
   const [hasCaptured, setHasCaptured] = useState(false);
@@ -32,7 +32,12 @@ const WebcamCapture: React.FC = () => {
           const width = videoRef.current!.videoWidth;
           const height = videoRef.current!.videoHeight;
           setVideoSize({ width, height });
-          setCrop(prev => ({ ...prev, x: (width - prev.width) / 2, y: (height - prev.height) / 2 }));
+          setCrop({
+            x: (width - 300) / 2,
+            y: (height - 100) / 2,
+            width: 300,
+            height: 100
+          });
         };
       }
     };
@@ -250,7 +255,7 @@ const WebcamCapture: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100vw', minHeight: '100vh', padding: '16px', boxSizing: 'border-box', overflowY: 'auto' }}>
-      <div style={{ position: 'relative', width: '100%', maxWidth: '100%', aspectRatio: `${videoSize.width} / ${videoSize.height}` }}>
+      <div style={{ position: 'relative', width: '100%', maxWidth: videoSize.width, aspectRatio: `${videoSize.width} / ${videoSize.height}` }}>
         <video
           ref={videoRef}
           autoPlay
