@@ -252,7 +252,8 @@ const WebcamCapture: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100vw', minHeight: '100vh', padding: '16px', boxSizing: 'border-box', overflowY: 'auto' }}>
+
       <div style={{ position: 'relative', width: videoSize.width, height: videoSize.height }}>
         <video
           ref={videoRef}
