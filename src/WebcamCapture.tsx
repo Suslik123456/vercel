@@ -4,22 +4,20 @@ import * as tmImage from '@teachablemachine/image';
 const MODEL_URL = '/model/';
 
 type Crop = { x: number; y: number; width: number; height: number };
-type InputEvent = React.MouseEvent<HTMLCanvasElement> | Touch;
-const HANDLE_SIZE = 10;
 
 const WebcamCapture: React.FC = () => {
+  
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [videoSize, setVideoSize] = useState({ width: 640, height: 480 });
-  const [crop, setCrop] = useState<Crop>({ x: (640 - 300) / 2, y: (480 - 100) / 2, width: 300, height: 100 });
-  const dragging = useRef<null | string>(null);
-  const dragStart = useRef<{ x: number; y: number; crop: Crop } | null>(null);
+  const [crop, setCrop] = useState<Crop>({ x: 170, y: 190, width: 300, height: 100 });
 
-  const [model, setModel] = useState<tmImage.CustomMobileNet | null>(null); // used in detection useEffect
+  const [model, setModel] = useState<tmImage.CustomMobileNet | null>(null);
   const [label, setLabel] = useState<string>('');
   const [confidence, setConfidence] = useState<number>(0);
   const [hasCaptured, setHasCaptured] = useState(false);
+  const delayRef = useRef(false);
 
   useEffect(() => {
     const init = async () => {
@@ -32,7 +30,7 @@ const WebcamCapture: React.FC = () => {
           const width = videoRef.current!.videoWidth;
           const height = videoRef.current!.videoHeight;
           setVideoSize({ width, height });
-          setCrop(prev => ({ ...prev, x: (width - prev.width) / 2, y: (height - prev.height) / 2 }));
+          setCrop({ x: (width - 300) / 2, y: (height - 100) / 2, width: 300, height: 100 });
         };
       }
     };
@@ -55,8 +53,12 @@ const WebcamCapture: React.FC = () => {
 
     const detect = async () => {
       if (!videoRef.current || !model) return;
-      const { x, y, width, height } = crop;
+      if (delayRef.current) {
+        setTimeout(() => requestAnimationFrame(detect), 300);
+        return;
+      }
 
+      const { x, y, width, height } = crop;
       const cropCanvas = document.createElement('canvas');
       cropCanvas.width = width;
       cropCanvas.height = height;
@@ -65,13 +67,12 @@ const WebcamCapture: React.FC = () => {
 
       cropCtx.drawImage(videoRef.current, x, y, width, height, 0, 0, width, height);
       const predictions = await model.predict(cropCanvas);
-      const high = predictions.find(p => p.probability > 0.9);
+      const high = predictions.find(p => p.className === 'RazorHead' && p.probability >= 0.995);
 
-      if (high && videoRef.current) {
+      if (high && high.probability >= 0.998) {
         setLabel(high.className);
         setConfidence(Math.round(high.probability * 100));
 
-        // Always capture for testing
         const finalCanvas = document.createElement('canvas');
         finalCanvas.width = width;
         finalCanvas.height = height;
@@ -79,22 +80,22 @@ const WebcamCapture: React.FC = () => {
         if (finalCtx) {
           finalCtx.drawImage(videoRef.current, x, y, width, height, 0, 0, width, height);
           const imgData = finalCanvas.toDataURL('image/png');
-          console.log('Captured Image:', imgData);
           setCapturedImage(imgData);
           setHasCaptured(true);
         }
-          
+
+        delayRef.current = true;
+        setTimeout(() => {
+          delayRef.current = false;
+        }, 10000);
+        return;
       } else {
         setLabel('');
         setConfidence(0);
+        setTimeout(() => requestAnimationFrame(detect), 300);
       }
+    };
 
-      if (label === 'RazorHead') {
-        requestAnimationFrame(detect);
-      } else {
-        setTimeout(() => requestAnimationFrame(detect), 200);
-      }
-  };
     requestAnimationFrame(detect);
   }, [model, crop, hasCaptured]);
 
@@ -130,131 +131,33 @@ const WebcamCapture: React.FC = () => {
         ctx.strokeStyle = 'yellow';
         ctx.lineWidth = 3;
         ctx.strokeRect(x, y, width, height);
-
-        const handles = getHandles(crop);
-        ctx.fillStyle = 'yellow';
-        handles.forEach(({ x, y }) => {
-          ctx.fillRect(x - HANDLE_SIZE / 2, y - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
-        });
       }
       video.requestVideoFrameCallback(drawFrame);
     };
     video.requestVideoFrameCallback(drawFrame);
   }, [crop]);
 
-  const getHandles = (c: Crop) => [
-    { x: c.x, y: c.y },
-    { x: c.x + c.width, y: c.y },
-    { x: c.x, y: c.y + c.height },
-    { x: c.x + c.width, y: c.y + c.height },
-  ];
-
-  const getRelativePos = (e: InputEvent) => {
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const clientX = 'clientX' in e ? e.clientX : 0;
-    const clientY = 'clientY' in e ? e.clientY : 0;
-    return {
-      x: (clientX - rect.left) * (canvasRef.current!.width / rect.width),
-      y: (clientY - rect.top) * (canvasRef.current!.height / rect.height),
-    };
-  };
-
-  const isInHandle = (pos: { x: number; y: number }, handle: { x: number; y: number }) =>
-    pos.x >= handle.x - HANDLE_SIZE &&
-    pos.x <= handle.x + HANDLE_SIZE &&
-    pos.y >= handle.y - HANDLE_SIZE &&
-    pos.y <= handle.y + HANDLE_SIZE;
-
-  const detectHandle = (pos: { x: number; y: number }) => {
-    const handles = [
-      { x: crop.x, y: crop.y, name: 'nw' },
-      { x: crop.x + crop.width, y: crop.y, name: 'ne' },
-      { x: crop.x, y: crop.y + crop.height, name: 'sw' },
-      { x: crop.x + crop.width, y: crop.y + crop.height, name: 'se' },
-    ];
-    for (const handle of handles) {
-      if (isInHandle(pos, handle)) return handle.name;
-    }
-    if (
-      pos.x > crop.x &&
-      pos.x < crop.x + crop.width &&
-      pos.y > crop.y &&
-      pos.y < crop.y + crop.height
-    )
-      return 'move';
-    return null;
-  };
-
-  const onMouseDown = (e: React.MouseEvent<HTMLCanvasElement> | Touch) => {
-    const pos = getRelativePos(e);
-    const handle = detectHandle(pos);
-    if (handle) {
-      dragging.current = handle;
-      dragStart.current = { x: pos.x, y: pos.y, crop };
-    }
-  };
-
-  const onMouseMove = (e: React.MouseEvent<HTMLCanvasElement> | Touch) => {
-    if (!dragging.current) return;
-    const pos = getRelativePos(e);
-    const start = dragStart.current;
-    if (!start) return;
-    const dx = pos.x - start.x;
-    const dy = pos.y - start.y;
-
-    let newCrop = { ...start.crop };
-
-    switch (dragging.current) {
-      case 'move':
-        newCrop.x = Math.max(0, Math.min(start.crop.x + dx, videoSize.width - start.crop.width));
-        newCrop.y = Math.max(0, Math.min(start.crop.y + dy, videoSize.height - start.crop.height));
-        break;
-      case 'nw':
-        newCrop.x = Math.min(start.crop.x + dx, start.crop.x + start.crop.width - 20);
-        newCrop.y = Math.min(start.crop.y + dy, start.crop.y + start.crop.height - 20);
-        newCrop.width = start.crop.width - (newCrop.x - start.crop.x);
-        newCrop.height = start.crop.height - (newCrop.y - start.crop.y);
-        break;
-      case 'ne':
-        newCrop.y = Math.min(start.crop.y + dy, start.crop.y + start.crop.height - 20);
-        newCrop.width = Math.max(20, start.crop.width + dx);
-        newCrop.height = start.crop.height - (newCrop.y - start.crop.y);
-        break;
-      case 'sw':
-        newCrop.x = Math.min(start.crop.x + dx, start.crop.x + start.crop.width - 20);
-        newCrop.width = start.crop.width - (newCrop.x - start.crop.x);
-        newCrop.height = Math.max(20, start.crop.height + dy);
-        break;
-      case 'se':
-        newCrop.width = Math.max(20, start.crop.width + dx);
-        newCrop.height = Math.max(20, start.crop.height + dy);
-        break;
-    }
-
-    newCrop.x = Math.max(0, newCrop.x);
-    newCrop.y = Math.max(0, newCrop.y);
-    newCrop.width = Math.min(newCrop.width, videoSize.width - newCrop.x);
-    newCrop.height = Math.min(newCrop.height, videoSize.height - newCrop.y);
-
-    setCrop(newCrop);
-  };
-
-  const onMouseUp = () => {
-    dragging.current = null;
-    dragStart.current = null;
-  };
-
   const reset = () => {
     setCapturedImage(null);
     setLabel('');
     setConfidence(0);
     setHasCaptured(false);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      setCrop({
+        x: (rect.width - 300) / 2,
+        y: (rect.height - 100) / 2,
+        width: 300,
+        height: 100
+      });
+    }
+
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100vw', minHeight: '100vh', padding: '16px', boxSizing: 'border-box', overflowY: 'auto' }}>
-
-      <div style={{ position: 'relative', width: videoSize.width, height: videoSize.height }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100vw', minHeight: '100vh', padding: '16px 0', boxSizing: 'border-box', overflowY: 'auto' }}>
+      <div style={{ position: 'relative', width: '100%', maxWidth: videoSize.width, aspectRatio: `${videoSize.width} / ${videoSize.height}` }}>
         <video
           ref={videoRef}
           autoPlay
@@ -264,19 +167,27 @@ const WebcamCapture: React.FC = () => {
         />
         <canvas
           ref={canvasRef}
-          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', touchAction: 'none', cursor: dragging.current ? 'grabbing' : 'default' }}
-          onTouchStart={(e) => e.touches.length > 0 && onMouseDown(e.touches[0] as Touch)}
-          onTouchMove={(e) => e.touches.length > 0 && onMouseMove(e.touches[0] as Touch)}
-          onTouchEnd={onMouseUp}
-          onMouseDown={onMouseDown}
-          onMouseMove={onMouseMove}
-          onMouseUp={onMouseUp}
-          onMouseLeave={onMouseUp}
+          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'default' }}
         />
       </div>
+      
       <p style={{ marginTop: 12 }}>Detected: <strong>{label || 'None'}</strong></p>
-      <p>Confidence: {confidence}%</p>
-      {capturedImage !== null && capturedImage !== '' && (
+      <p>Confidence: <strong>{confidence}%</strong></p>
+      <div style={{ width: '100%', maxWidth: 300, height: 10, backgroundColor: '#eee', borderRadius: 5, overflow: 'hidden' }}>
+        <div style={{ width: '100%', maxWidth: 300, height: 10, backgroundColor: '#eee', borderRadius: 5, overflow: 'hidden' }}>
+          <div style={{
+                width: `${confidence}%`,
+                height: '100%',
+                backgroundColor: confidence >= 99.8 ? 'limegreen' : confidence > 80 ? 'orange' : 'red',
+                transition: 'width 0.5s ease-in-out, background-color 0.3s ease-in-out'
+              }}>
+          </div>
+</div>
+
+      </div>
+      
+
+      {capturedImage && (
         <div style={{ marginTop: '16px' }}>
           <p>Captured Image:</p>
           <img src={capturedImage} alt="Captured" style={{ border: '1px solid #ccc', maxWidth: '100%' }} />
