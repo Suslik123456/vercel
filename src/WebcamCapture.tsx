@@ -59,7 +59,7 @@ const WebcamCapture: React.FC = () => {
     ctx.scale(dpr, dpr);
 
     const detect = async () => {
-      if (!videoRef.current || !model) return;
+      if (!videoRef.current || !model || hasCaptured) return;
       const { x, y, width, height } = crop;
 
       const cropCanvas = document.createElement('canvas');
@@ -70,9 +70,9 @@ const WebcamCapture: React.FC = () => {
 
       cropCtx.drawImage(videoRef.current, x, y, width, height, 0, 0, width, height);
       const predictions = await model.predict(cropCanvas);
-      const high = predictions.find(p => p.probability > 0.9);
+      const high = predictions.find(p => p.className === 'RazorHead' && p.probability > 0.9);
 
-      if (high && videoRef.current) {
+      if (high) {
         setLabel(high.className);
         setConfidence(Math.round(high.probability * 100));
 
@@ -86,16 +86,12 @@ const WebcamCapture: React.FC = () => {
           setCapturedImage(imgData);
           setHasCaptured(true);
         }
+        return; // stop after successful capture
       } else {
         setLabel('');
         setConfidence(0);
       }
-
-      if (label === 'RazorHead') {
-        requestAnimationFrame(detect);
-      } else {
-        setTimeout(() => requestAnimationFrame(detect), 200);
-      }
+      requestAnimationFrame(detect);
     };
     requestAnimationFrame(detect);
   }, [model, crop, hasCaptured]);
