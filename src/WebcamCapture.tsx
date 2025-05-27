@@ -32,12 +32,7 @@ const WebcamCapture: React.FC = () => {
           const width = videoRef.current!.videoWidth;
           const height = videoRef.current!.videoHeight;
           setVideoSize({ width, height });
-          setCrop({
-            x: (width - 300) / 2,
-            y: (height - 100) / 2,
-            width: 300,
-            height: 100
-          });
+          setCrop({ x: (width - 300) / 2, y: (height - 100) / 2, width: 300, height: 100 });
         };
       }
     };
@@ -58,8 +53,10 @@ const WebcamCapture: React.FC = () => {
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
 
+    let timeoutId: NodeJS.Timeout | null = null;
+
     const detect = async () => {
-      if (!videoRef.current || !model || hasCaptured) return;
+      if (!videoRef.current || !model) return;
       const { x, y, width, height } = crop;
 
       const cropCanvas = document.createElement('canvas');
@@ -72,7 +69,7 @@ const WebcamCapture: React.FC = () => {
       const predictions = await model.predict(cropCanvas);
       const high = predictions.find(p => p.className === 'RazorHead' && p.probability > 0.9);
 
-      if (high) {
+      if (high && videoRef.current) {
         setLabel(high.className);
         setConfidence(Math.round(high.probability * 100));
 
@@ -86,14 +83,24 @@ const WebcamCapture: React.FC = () => {
           setCapturedImage(imgData);
           setHasCaptured(true);
         }
-        return; // stop after successful capture
+
+        timeoutId = setTimeout(() => {
+          requestAnimationFrame(detect);
+        }, 10000); // 10-second delay
+        return;
       } else {
         setLabel('');
         setConfidence(0);
       }
+
       requestAnimationFrame(detect);
     };
+
     requestAnimationFrame(detect);
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [model, crop, hasCaptured]);
 
   useEffect(() => {
@@ -273,7 +280,7 @@ const WebcamCapture: React.FC = () => {
       </div>
       <p style={{ marginTop: 12 }}>Detected: <strong>{label || 'None'}</strong></p>
       <p>Confidence: {confidence}%</p>
-      {capturedImage !== null && capturedImage !== '' && (
+      {capturedImage && (
         <div style={{ marginTop: '16px' }}>
           <p>Captured Image:</p>
           <img src={capturedImage} alt="Captured" style={{ border: '1px solid #ccc', maxWidth: '100%' }} />
