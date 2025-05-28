@@ -59,26 +59,28 @@ const WebcamCapture: React.FC = () => {
 
       cropCtx.drawImage(videoRef.current, x, y, width, height, 0, 0, width, height);
       const predictions = await model.predict(cropCanvas);
-      const high = predictions.find(p => p.className === 'RazorHead' && p.probability >= 0.998);
+      const high = predictions.find(p => p.className === 'RazorHead');
 
       if (high) {
-        setConfidence(Math.round(high.probability * 100));
+        const conf = Math.round(high.probability * 1000) / 10; // 1 decimal
+        setConfidence(conf);
 
-        const finalCanvas = document.createElement('canvas');
-        finalCanvas.width = width;
-        finalCanvas.height = height;
-        const finalCtx = finalCanvas.getContext('2d');
-        if (finalCtx) {
-          finalCtx.drawImage(videoRef.current, x, y, width, height, 0, 0, width, height);
-          const imgData = finalCanvas.toDataURL('image/png');
-          setCapturedImage(imgData);
-          setHasCaptured(true);
+        if (conf >= 99.8 && !hasCaptured) {
+          const finalCanvas = document.createElement('canvas');
+          finalCanvas.width = width;
+          finalCanvas.height = height;
+          const finalCtx = finalCanvas.getContext('2d');
+          if (finalCtx) {
+            finalCtx.drawImage(videoRef.current, x, y, width, height, 0, 0, width, height);
+            const imgData = finalCanvas.toDataURL('image/png');
+            setCapturedImage(imgData);
+            setHasCaptured(true);
+            delayRef.current = true;
+            setTimeout(() => {
+              delayRef.current = false;
+            }, 10000);
+          }
         }
-
-        delayRef.current = true;
-        setTimeout(() => {
-          delayRef.current = false;
-        }, 10000);
       } else {
         setConfidence(0);
       }
@@ -124,32 +126,44 @@ const WebcamCapture: React.FC = () => {
     video.requestVideoFrameCallback(drawFrame);
   }, [crop]);
 
-  const reset = () => {
-    setCapturedImage(null);
-    setConfidence(0);
-    setHasCaptured(false);
-    setCrop({
-      x: (videoSize.width - 300) / 2,
-      y: (videoSize.height - 100) / 2,
-      width: 300,
-      height: 100
-    });
-  };
+  // const reset = () => {
+  //   setCapturedImage(null);
+  //   setConfidence(0);
+  //   setHasCaptured(false);
+  //   setCrop({
+  //     x: (videoSize.width - 300) / 2,
+  //     y: (videoSize.height - 100) / 2,
+  //     width: 300,
+  //     height: 100
+  //   });
+  // };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100vw', minHeight: '100vh', padding: '16px 0', boxSizing: 'border-box', overflowY: 'auto' }}>
-      <div style={{ position: 'relative', width: '100%', maxWidth: '100%', aspectRatio: '4 / 3' }}>
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          playsInline
-          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-        />
-        <canvas
-          ref={canvasRef}
-          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'default' }}
-        />
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      width: '100vw', minHeight: '100vh', padding: '16px 0',
+      boxSizing: 'border-box', overflowY: 'auto',
+      maxWidth: '100%',
+    }}>
+      <div
+        style={{
+          position: 'relative', width: '100%',
+          maxWidth: '100%',
+          padding: '0 16px',
+        }}>
+        <div style={{ width: '100%', maxWidth: '40rem', margin: '0 auto', position: 'relative', aspectRatio: '4 / 3' }}>
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            playsInline
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+          <canvas
+            ref={canvasRef}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'default' }}
+          />
+        </div>
       </div>
 
       <p>Confidence: <strong>{confidence}%</strong></p>
@@ -168,11 +182,11 @@ const WebcamCapture: React.FC = () => {
           <img src={capturedImage} alt="Captured" style={{ border: '1px solid #ccc', maxWidth: '100%' }} />
         </div>
       )}
-      {hasCaptured && (
+       {/* {hasCaptured && (
         <button onClick={reset} style={{ marginTop: '12px', padding: '8px 16px' }}>
           Scan Again
         </button>
-      )}
+      )} */}
     </div>
   );
 };
