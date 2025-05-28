@@ -137,19 +137,31 @@ const WebcamCapture: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100vw', minHeight: '100vh', padding: '16px 0', boxSizing: 'border-box', overflowY: 'auto' }}>
-      <div style={{ position: 'relative', width: '100%', maxWidth: '100%', aspectRatio: '4 / 3' }}>
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          playsInline
-          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-        />
-        <canvas
-          ref={canvasRef}
-          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'default' }}
-        />
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      width: '100vw', minHeight: '100vh', padding: '16px 0',
+      boxSizing: 'border-box', overflowY: 'auto',
+      maxWidth: '100%',
+    }}>
+      <div
+        style={{
+          position: 'relative', width: '100%',
+          maxWidth: '100%',
+          padding: '0 16px',
+        }}>
+        <div style={{ width: '100%', maxWidth: '40rem', margin: '0 auto', position: 'relative', aspectRatio: '4 / 3' }}>
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            playsInline
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+          <canvas
+            ref={canvasRef}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'default' }}
+          />
+        </div>
       </div>
 
       <p>Confidence: <strong>{confidence}%</strong></p>
