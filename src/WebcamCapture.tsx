@@ -9,7 +9,6 @@ const WebcamCapture: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [videoSize, setVideoSize] = useState({ width: 640, height: 480 });
   const [crop, setCrop] = useState<Crop>({ x: 170, y: 190, width: 300, height: 100 });
 
   const [model, setModel] = useState<tmImage.CustomMobileNet | null>(null);
@@ -27,7 +26,6 @@ const WebcamCapture: React.FC = () => {
         videoRef.current.onloadedmetadata = () => {
           const width = videoRef.current!.videoWidth;
           const height = videoRef.current!.videoHeight;
-          setVideoSize({ width, height });
           setCrop({ x: (width - 300) / 2, y: (height - 100) / 2, width: 300, height: 100 });
         };
       }
@@ -126,17 +124,11 @@ const WebcamCapture: React.FC = () => {
     video.requestVideoFrameCallback(drawFrame);
   }, [crop]);
 
-  // const reset = () => {
-  //   setCapturedImage(null);
-  //   setConfidence(0);
-  //   setHasCaptured(false);
-  //   setCrop({
-  //     x: (videoSize.width - 300) / 2,
-  //     y: (videoSize.height - 100) / 2,
-  //     width: 300,
-  //     height: 100
-  //   });
-  // };
+  const reset = () => {
+    setCapturedImage(null);
+    setConfidence(0);
+    setHasCaptured(false);
+  };
 
   return (
     <div style={{
@@ -182,11 +174,11 @@ const WebcamCapture: React.FC = () => {
           <img src={capturedImage} alt="Captured" style={{ border: '1px solid #ccc', maxWidth: '100%' }} />
         </div>
       )}
-       {/* {hasCaptured && (
+      {hasCaptured && (
         <button onClick={reset} style={{ marginTop: '12px', padding: '8px 16px' }}>
           Scan Again
         </button>
-      )} */}
+      )}
     </div>
   );
 };
